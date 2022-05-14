@@ -2,7 +2,7 @@
 -- For usage info, see README.md
 -- For license info, see LICENSE
 
-local PROGRAM_VERSION = "1.0.0"
+local PROGRAM_VERSION = "1.0.1"
 
 require("lib.test.strict")
 local nativefs = require("lib.nativefs")
@@ -25,12 +25,11 @@ local fonts_per_tick = 400 -- decrease if application hangs due to IO overhead
 
 
 -- * Program State *
-
 local mode = "interactive"
 local sub_state = "scanning" -- "scanning", "working", "no_fonts_found"
 
 local co_enumerate -- will hold coroutine for file enumeration
-local co_time -- Coroutine yields if love.timer.getTime() exceeds this value
+local co_time -- Coroutine yields if love.timer.getTime() exceeds this value (after running at least one loop iter.)
 local co_path_status -- Something to print while scanning takes place
 
 local translate_x, translate_y = 16, 96
@@ -47,6 +46,7 @@ local int_name = "<LÖVE Built-in Font>"
 local int_n_offsets = 0
 
 local display_lines = {}
+
 
 -- * Program Stats *
 local fonts_with_non_zero_kerning = 0
