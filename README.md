@@ -4,7 +4,7 @@ This is a quick-and-dirty utility for checking if a TrueType font exhibits kerni
 
 Inspector Kern defaults to an interactive mode: drag-and-drop TTF files onto the application window to get a report on the number of non-zero kerning offsets detected. It starts with the default LÖVE font ([Vera Sans](https://en.wikipedia.org/wiki/Bitstream_Vera) in 11.x).
 
-Also available is the bulk test mode, which is initiated from the command line. It will recursively scan a directory for TrueType fonts (identified by having a `.ttf` extension) and list those fonts which exhibit any non-zero kerning pair offsets.
+A bulk test mode is also available, accessible from the command line. It will recursively scan a directory for TrueType fonts (identified by having a `.ttf` extension) and list those fonts which exhibit any non-zero kerning pair offsets.
 
 
 ## Usage
@@ -41,4 +41,4 @@ The following assumes you are in the same directory as `main.lua`.
 
 * Inspector Kern doesn't know anything about the TrueType format, including whether a given font actually has kerning information. It only reports if *LÖVE* detects any non-zero kerning offsets, among a predefined set of glyph pairs, at size 72.
 
-* Some fonts don't have kerning information by design. Check the font in a known-good application such as a reliable word processor, or a font tool such as FontForge to be sure. A common kerning pair which is easy to identify at a glance is upper-case "LT" at a large font size.
+* Some fonts don't have kerning information by design. Check the font in a known-good application to be sure. A common kerning pair which is easy to identify at a glance is upper-case "LT" at a large font size.
