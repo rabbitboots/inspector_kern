@@ -17,7 +17,7 @@ The following assumes you are in the same directory as `main.lua`.
 
 
 `love . --bulk path/to/fonts`
-* Uses love.filesystem to recursively test all fonts in a given path. The testing is rate-limited to approximately 120 fonts per second to prevent the application from becoming unresponsive.
+* Uses love.filesystem to recursively test all fonts in a given path. The testing loop is time-limited to prevent the application from becoming unresponsive.
 
 
 `love . --bulk-nfs path/to/fonts`
@@ -39,6 +39,6 @@ The following assumes you are in the same directory as `main.lua`.
 
 ## Notes
 
-* Inspector Kern doesn't know anything about the TrueType format, including whether a given font actually has kerning information. It only reports if *LÖVE* detects any non-zero kerning offsets, among a predefined set of glyph pairs, at size 72.
+* Inspector Kern doesn't know anything about the TrueType format, including whether a given font actually has kerning information. It only reports if `Font:getKerning()` detects any non-zero kerning offsets, among a predefined set of glyph pairs, at size 72.
 
 * Some fonts don't have kerning information by design. Check the font in a known-good application to be sure. A common kerning pair which is easy to identify at a glance is upper-case "LT" at a large font size.
