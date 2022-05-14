@@ -21,7 +21,6 @@ local bulk_path = false
 local fs_backend = "lfs"
 
 local tick_time = 1/30
-local fonts_per_tick = 400 -- decrease if application hangs due to IO overhead
 
 
 -- * Program State *
