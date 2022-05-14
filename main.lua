@@ -20,17 +20,23 @@ local font_size_display = 24
 local bulk_path = false
 local fs_backend = "lfs"
 
+local tick_time = 1/30
+local fonts_per_tick = 400 -- decrease if application hangs due to IO overhead
+
 
 -- * Program State *
 
 local mode = "interactive"
-local sub_state = "working"
+local sub_state = "scanning" -- "scanning", "working", "no_fonts_found"
+
+local co_enumerate -- will hold coroutine for file enumeration
+local co_time -- Coroutine yields if love.timer.getTime() exceeds this value
+local co_path_status -- Something to print while scanning takes place
 
 local translate_x, translate_y = 16, 96
 local list_y = 1
 
 local font_paths = {}
-local fonts_per_second = 120
 local font_i = 1
 
 local accumulator = 0
@@ -132,6 +138,10 @@ end
 
 
 local function _recursiveEnumerate(folder, filters, _file_list)
+	if _file_list and coroutine.running() and love.timer.getTime() >= co_time then
+		coroutine.yield()
+	end
+
 	_file_list = _file_list or {}
 
 	local filesTable = fs_getDirectoryItems(folder)
@@ -154,6 +164,10 @@ local function _recursiveEnumerate(folder, filters, _file_list)
 				_recursiveEnumerate(file, filters, _file_list)
 			end
 		end
+		if coroutine.running() and love.timer.getTime() >= co_time then
+			co_path_status = file
+			coroutine.yield()
+		end
 	end
 
 	return _file_list
@@ -169,19 +183,7 @@ local function initBulk(fs_back, b_path)
 
 	bulk_path = b_path
 
-	-- TODO: Can we avoid application hangs when passing in a path with an extremely large number of files?
-	font_paths = _recursiveEnumerate(bulk_path, {["ttf"] = true})
-
-	if #font_paths == 0 then
-		sub_state = "no_fonts_found"
-	end
-
-	-- Debug: show all found files
-	--[[
-	for i, f_path in ipairs(font_paths) do
-		print(i, f_path)
-	end
-	--]]
+	co_enumerate = coroutine.create(_recursiveEnumerate)
 end
 
 
@@ -269,63 +271,94 @@ function love.filedropped(file)
 	collectgarbage("collect")
 end
 
-
+local first_update = true
 function love.update(dt)
-	if mode == "bulk" and sub_state == "working" then
+	if mode == "bulk" then
 		accumulator = accumulator + dt
-		local count = 1
 
-		while accumulator > (1 / fonts_per_second) and count < 100 and font_i <= #font_paths do
-			local font_path = font_paths[font_i]
+		if sub_state == "scanning" then
+			co_time = love.timer.getTime() + tick_time
+			local co_ok, co_res
 
-			local ok, err_or_obj
-			ok, err_or_obj = pcall(fs_newFileData, font_path)
-			if not ok then
-				table.insert(display_lines, "ERR" .. " | " .. font_path)
-
+			if first_update then
+				co_ok, co_res = coroutine.resume(co_enumerate, bulk_path, {["ttf"] = true})
 			else
-				local font_file_data = err_or_obj
-				ok, err_or_obj = pcall(love.graphics.newFont, font_file_data, font_size)
+				co_ok, co_res = coroutine.resume(co_enumerate)
+			end
+
+			if co_ok == false then
+				error("coroutine failure: " .. tostring(co_res))
+			end
+			if co_res then
+				font_paths = co_res
+
+				if #font_paths == 0 then
+					sub_state = "no_fonts_found"
+				else
+					sub_state = "working"
+				end
+
+				-- Debug: show all found files
+				--[[
+				for i, f_path in ipairs(font_paths) do
+					print(i, f_path)
+				end
+				--]]
+			end
+
+		elseif sub_state == "working" then
+		
+			local count = 1
+			local max_time = love.timer.getTime() + tick_time
+
+			while font_i <= #font_paths do
+				local font_path = font_paths[font_i]
+
+				local ok, err_or_obj
+				ok, err_or_obj = pcall(fs_newFileData, font_path)
+
 				if not ok then
 					table.insert(display_lines, "ERR" .. " | " .. font_path)
-					print("ERR", font_path)
 
 				else
-					local font = err_or_obj
-					local non_zero_pairs = countKerningOffsets(font)
+					local font_file_data = err_or_obj
+					ok, err_or_obj = pcall(love.graphics.newFont, font_file_data, font_size)
+					if not ok then
+						table.insert(display_lines, "ERR" .. " | " .. font_path)
+						print("ERR", font_path)
 
-					if non_zero_pairs > 0 then
-						print(non_zero_pairs, font_path)
-						table.insert(display_lines, non_zero_pairs .. " | " .. font_path)
+					else
+						local font = err_or_obj
+						local non_zero_pairs = countKerningOffsets(font)
+
+						if non_zero_pairs > 0 then
+							print(non_zero_pairs, font_path)
+							table.insert(display_lines, non_zero_pairs .. " | " .. font_path)
+						end
+
+						if non_zero_pairs ~= 0 then
+							fonts_with_non_zero_kerning = fonts_with_non_zero_kerning + 1
+						end
+
+						font:release()
+						collectgarbage("collect")
+						collectgarbage("collect")
 					end
 
-					if non_zero_pairs ~= 0 then
-						fonts_with_non_zero_kerning = fonts_with_non_zero_kerning + 1
+					fonts_total = fonts_total + 1
+					font_i = font_i + 1
+
+					if love.timer.getTime() >= max_time then
+						break
 					end
-
-					font:release()
-					collectgarbage("collect")
-					collectgarbage("collect")
 				end
+			end
+			if font_i > #font_paths then
+				sub_state = "done"
 
-				fonts_total = fonts_total + 1
-
-				font_i = font_i + 1
-
-				accumulator = accumulator - (1 / fonts_per_second)
-
-				count = count + 1
-				if count == 100 then
-					accumulator = 0
-				end
-
-				if font_i > #font_paths then
-					sub_state = "done"
-
-					print("\n\n~ Final Stats ~")
-					print("Fonts with non-zero kerning: " .. fonts_with_non_zero_kerning)
-					print("Total fonts: " .. fonts_total)
-				end
+				print("\n\n~ Final Stats ~")
+				print("Fonts with non-zero kerning: " .. fonts_with_non_zero_kerning)
+				print("Total fonts: " .. fonts_total)
 			end
 		end
 	end
@@ -349,7 +382,12 @@ function love.draw()
 		yy = yy + y_inc*3
 
 	else
-		if sub_state == "no_fonts_found" then
+		if sub_state == "scanning" then
+			if co_path_status then
+				love.graphics.print("Scanning: " .. co_path_status)
+			end
+
+		elseif sub_state == "no_fonts_found" then
 			love.graphics.print("No fonts found at path: |" .. bulk_path .. "|")
 
 		else
