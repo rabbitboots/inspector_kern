@@ -219,7 +219,7 @@ local function reportHasGlyphs(font, glyph_defs)
 	for i, def in ipairs(glyph_defs) do
 		ret_str = ret_str .. def[1] .. ": " .. tostring(font:hasGlyphs(def[2]))
 		if i < #glyph_defs then
-			ret_str = ret_str .. "\t"
+			ret_str = ret_str .. ", "
 		end
 	end
 
