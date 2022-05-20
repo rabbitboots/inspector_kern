@@ -236,9 +236,7 @@ function love.load(arguments)
 	local bulk_path
 
 	local i = 1
-	print("i", i, "#arguments", #arguments)
 	while i <= #arguments do
-		print("i", i)
 		local argument = arguments[i]
 
 		-- Bulk Mode (using love.filesystem)
