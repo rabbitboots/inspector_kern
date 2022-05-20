@@ -2,7 +2,7 @@
 -- For usage info, see README.md
 -- For license info, see LICENSE
 
-local PROGRAM_VERSION = "1.0.1"
+local PROGRAM_VERSION = "1.0.2"
 
 require("lib.test.strict")
 local nativefs = require("lib.nativefs")
@@ -32,7 +32,6 @@ local glyphs_t = {
 	{"(\\n)", "\n"}, -- Line feed (newline)
 	{"( )", " "}, -- Space
 }
-
 
 
 -- * Program State *

@@ -6,6 +6,8 @@ Inspector Kern defaults to an interactive mode: drag-and-drop TTF files onto the
 
 A bulk test mode is also available, accessible from the command line. It will recursively scan a directory for TrueType fonts (identified by having a `.ttf` extension) and list those fonts which exhibit any non-zero kerning pair offsets.
 
+Additionally, for each font loaded, Inspector Kern can run a sequence of strings against `Font:hasGlyphs()` and print the results.
+
 
 ## Usage
 
@@ -35,6 +37,13 @@ The following assumes you are in the same directory as `main.lua`.
 * PageUp/PageDown: Scroll the list 10 at a time.
 * Home/End: Jump to the top or bottom of the list.
 * Escape: Quit the application.
+
+
+## hasGlyphs mode
+
+"hasGlyphs" mode can be enabled by passing the command line argument `--has-glyphs`. When this mode is active, each loaded font is tested against a series of strings with the `Font:hasGlyphs()` method. In interactive mode, the results are printed below the kerning pair examples. In bulk mode, the results are printed to the console/terminal only. (It's a horrible mess. Sorry. You may need to paste the results into a spreadsheet, or run them through a text processor to make it readable.)
+
+The `glyphs_t` table contains the strings that are tested. Each entry is a sub-table: the first index is an identifier, and the second index is the actual string to test. The `glyph_t` defaults are all common ASCII whitespace chars, because those were the glyphs that I originally wanted to check when I added this option.
 
 
 ## Notes

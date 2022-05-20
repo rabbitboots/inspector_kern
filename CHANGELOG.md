@@ -1,5 +1,11 @@
 # Changelog -- Inspector Kern
 
+## 1.0.2 (2022-05-20)
+
+* Rewrote the arguments parser as a 'while' loop.
+* Added command line option `--has-glyphs`.
+
+
 ## 1.0.1 (2022-05-14)
 
 * Added changelog.
