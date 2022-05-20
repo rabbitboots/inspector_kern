@@ -22,6 +22,18 @@ local fs_backend = "lfs"
 
 local tick_time = 1/30
 
+local show_zero_kern_fonts = false
+
+local check_hasglyphs = false
+local glyphs_t = {
+	{"()", ""}, -- Empty string
+	{"(\\t)", "\t"}, -- Horizontal tab
+	{"(\\r)", "\r"}, -- Carriage return
+	{"(\\n)", "\n"}, -- Line feed (newline)
+	{"( )", " "}, -- Space
+}
+
+
 
 -- * Program State *
 local mode = "interactive"
@@ -41,6 +53,7 @@ local accumulator = 0
 
 local int_font = love.graphics.newFont(font_size)
 local int_font_display = love.graphics.newFont(font_size_display)
+local int_font_regular = love.graphics.newFont()
 local int_name = "<LÖVE Built-in Font>"
 local int_n_offsets = 0
 
@@ -201,29 +214,63 @@ local function countKerningOffsets(font)
 end
 
 
+local function reportHasGlyphs(font, glyph_defs)
+	local ret_str = ""
+
+	for i, def in ipairs(glyph_defs) do
+		ret_str = ret_str .. def[1] .. ": " .. tostring(font:hasGlyphs(def[2]))
+		if i < #glyph_defs then
+			ret_str = ret_str .. "\t"
+		end
+	end
+
+	return ret_str
+end
+
+
 function love.load(arguments)
 	print("* INSPECTOR KERN *")
 	print("VERSION: " .. PROGRAM_VERSION)
 	print("")
 
+	local bulk_mode = false
+	local bulk_path
 
-	-- Bulk Mode (using love.filesystem)
-	if arguments[1] == "--bulk" then
-		initBulk("lfs", arguments[2])
+	local i = 1
+	print("i", i, "#arguments", #arguments)
+	while i <= #arguments do
+		print("i", i)
+		local argument = arguments[i]
 
-	-- Bulk Mode (using nativefs)
-	elseif arguments[1] == "--bulk-nfs" then
-		initBulk("nfs", arguments[2])
+		-- Bulk Mode (using love.filesystem)
+		if arguments[i] == "--bulk" then
+			bulk_mode = "lfs"
+			bulk_path = arguments[i + 1]
+			i = i + 2
 
-	-- Interactive Mode
-	elseif #arguments == 0 then
-		int_n_offsets = countKerningOffsets(int_font)
+		-- Bulk Mode (using nativefs)
+		elseif arguments[i] == "--bulk-nfs" then
+			bulk_mode = "nfs"
+			bulk_path = arguments[i + 1]
+			i = i + 2
 
-	else
-		error("invalid arguments.")
+		-- Font:hasGlyphs() test
+		elseif arguments[i] == "--has-glyphs" then
+			check_hasglyphs = true
+			i = i + 1
+		
+		elseif arguments[i] == "--show-zero-kern" then
+			show_zero_kern_fonts = true
+			i = i + 1
+		end
+	end
+
+	if bulk_mode then
+		initBulk(bulk_mode, bulk_path)
 	end
 
 	if mode == "interactive" then
+		int_n_offsets = countKerningOffsets(int_font)
 		print("-> Interactive Mode -- drag-and-drop a TTF file to check for non-zero kerning offsets.")
 	else
 		print("-> Bulk Mode -- Checking files...\n")
@@ -269,6 +316,7 @@ function love.filedropped(file)
 	collectgarbage("collect")
 	collectgarbage("collect")
 end
+
 
 local first_update = true
 function love.update(dt)
@@ -330,13 +378,17 @@ function love.update(dt)
 						local font = err_or_obj
 						local non_zero_pairs = countKerningOffsets(font)
 
-						if non_zero_pairs > 0 then
+						if non_zero_pairs > 0 or show_zero_kern_fonts then
 							print(non_zero_pairs, font_path)
 							table.insert(display_lines, non_zero_pairs .. " | " .. font_path)
 						end
 
 						if non_zero_pairs ~= 0 then
 							fonts_with_non_zero_kerning = fonts_with_non_zero_kerning + 1
+						end
+
+						if check_hasglyphs then
+							print(font_path, "hasGlyphs:", reportHasGlyphs(font, glyphs_t))
 						end
 
 						font:release()
@@ -379,6 +431,11 @@ function love.draw()
 		yy = yy + y_inc*3
 		love.graphics.print("lt ta st la sz", 32, yy)
 		yy = yy + y_inc*3
+
+		if check_hasglyphs then
+			love.graphics.setFont(int_font_regular)
+			love.graphics.print("hasGlyphs: " .. reportHasGlyphs(int_font_display, glyphs_t), 32, yy)
+		end
 
 	else
 		if sub_state == "scanning" then
